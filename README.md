@@ -419,7 +419,7 @@ MIT – see [LICENSE](LICENSE).
 ## 👤 Author
 
 Amir Ali Pourbabaeii – Backend Developer
-[GitHub](https://github.com/your-username) · [LinkedIn](https://linkedin.com/in/your-profile)
+[GitHub](https://github.com/ByteBite1391)
 
 ---
 
