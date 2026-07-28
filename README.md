@@ -418,7 +418,7 @@ MIT – see [LICENSE](LICENSE).
 
 ## 👤 Author
 
-**Your Full Name** – Senior Backend Engineer  
+Amir Ali Pourbabaeii – Backend Developer
 [GitHub](https://github.com/your-username) · [LinkedIn](https://linkedin.com/in/your-profile)
 
 ---
