@@ -1,0 +1,6 @@
+# Production extras layered on top of base.txt.
+
+-r base.txt
+
+psycopg2-binary>=2.9
+gunicorn>=23.0

@@ -1,0 +1,94 @@
+# NexCart — production-ready Docker Compose.
+#
+# Services:
+#   db      PostgreSQL
+#   redis   Celery broker + result backend + cache
+#   web     Gunicorn serving the Django app
+#   worker  Celery worker for background tasks (email, notifications, ...)
+#   nginx   Reverse proxy / TLS termination / static serving
+#
+# Secrets come from a .env file at the project root (git-ignored). The compose
+# file only wires variable names; it never contains values.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nexcart}
+      POSTGRES_USER: ${POSTGRES_USER:-nexcart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexcart}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexcart}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nexcart}:${POSTGRES_PASSWORD:-nexcart}@db:5432/${POSTGRES_DB:-nexcart}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DJANGO_DEBUG: "False"
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A config worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nexcart}:${POSTGRES_PASSWORD:-nexcart}@db:5432/${POSTGRES_DB:-nexcart}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DJANGO_DEBUG: "False"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./compose/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./staticfiles:/usr/share/nginx/static:ro
+      - ./media:/usr/share/nginx/media:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:

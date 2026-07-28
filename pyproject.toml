@@ -1,0 +1,87 @@
+[project]
+name = "nexcart"
+version = "0.1.0"
+description = "NexCart — production-grade Django REST e-commerce backend"
+requires-python = ">=3.13"
+
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["config", "apps"]
+skip = ["migrations", ".venv"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "UP", "DJ", "RUF"]
+ignore = [
+    "E501",   # black handles line length
+    "N805",   # factory_boy + model Meta use non-self first arg by convention
+    "N818",   # our domain exceptions are suffixed Error, not Error suffix required
+    "RUF012", # Django Meta.ordering is a class-level list by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Settings modules use star-imports to layer env-specific config; F403/F405 is the pattern.
+"config/settings/*.py" = ["F403", "F405"]
+# Views defer some imports to avoid circular-import cycles with services.
+"apps/accounts/views.py" = ["E402"]
+"apps/accounts/services.py" = ["E402"]
+# Cart.session_key is deliberately nullable (anon vs authed cart).
+"apps/cart/models.py" = ["DJ001"]
+# Factory_boy post_generation hooks use `obj` as the first arg by convention.
+"tests/factories.py" = ["N805"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "apps"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.development"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.development"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = "-ra --strict-markers --reuse-db"
+markers = [
+    "slow: marks tests as slow",
+]
+
+[tool.coverage.run]
+source = ["apps", "config"]
+omit = ["*/migrations/*", "*/tests/*", "*/test_*.py", "manage.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
